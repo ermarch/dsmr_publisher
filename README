@@ -1,0 +1,45 @@
+compile:
+gcc -O2 -Wall -pthread p1_exporter.c -o p1_exporter
+
+--------------------------------------------------------------------------------
+install:
+cp -p p1_exporter /usr/local/bin/p1_exporter
+
+--------------------------------------------------------------------------------
+Create /etc/systemd/system/p1_exporter.service:
+[Unit]
+Description=DSMR P1 Prometheus Exporter
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/p1_exporter
+Restart=always
+User=p1
+Group=dialout
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
+
+--------------------------------------------------------------------------------
+sudo useradd -r p1
+sudo usermod -a -G dialout p1
+sudo systemctl daemon-reload
+sudo systemctl enable --now p1_exporter
+
+--------------------------------------------------------------------------------
+Prometheus scrape:
+- job_name: p1
+  static_configs:
+    - targets: ['raspberrypi:9100']
+
+--------------------------------------------------------------------------------
+Final notes (important)
+    Gas updates hourly -> use increase() in PromQL
+    Power totals != sum of phases (DSMR behavior)
+    Export per phase is essential for PV imbalance analysis
+    CRC is included but can be enforced per-telegram if desired
+
