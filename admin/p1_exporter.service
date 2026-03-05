@@ -1,0 +1,19 @@
+[Unit]
+Description=DSMR P1 Prometheus and Home Assistant publisher
+After=network.target
+
+[Service]
+Type=notify
+WatchdogSec=30s
+NotifyAccess=main
+ExecStart=/usr/local/bin/dsmr_publsiher
+Restart=always
+User=p1
+Group=dialout
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
