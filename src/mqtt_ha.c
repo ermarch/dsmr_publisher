@@ -52,7 +52,7 @@ mqtt_format_t mqtt_format = MQTT_FORMAT_HA_NATIVE;
 
 static void mqtt_queue_raw(fd_ctx_t *m, const void *data, size_t len)
 {
-    if (m->wlen + len >= WBUF)
+    if (m->wlen + len > WBUF)
         return;
 
     memcpy(m->wbuf + m->wlen, data, len);
@@ -101,7 +101,8 @@ void mqtt_connect(fd_ctx_t *ctx, fd_ctx_t *mqtt_ctx)
 
 static size_t mqtt_build_subscribe(uint8_t *buf, uint16_t pkt_id, const char *topic)
 {
-    uint8_t *p = buf + 2;
+    uint8_t payload[256];
+    uint8_t *p = payload;
 
     *p++ = pkt_id >> 8;
     *p++ = pkt_id & 0xff;
@@ -109,12 +110,25 @@ static size_t mqtt_build_subscribe(uint8_t *buf, uint16_t pkt_id, const char *to
     p = mqtt_put_string(p, topic);
     *p++ = 0x00; // QoS0
 
-    size_t remaining = p - (buf + 2);
+    size_t remaining = p - payload;
 
-    buf[0] = 0x82; // SUBSCRIBE
-    buf[1] = remaining;
+    /* Build fixed header with variable-length remaining field */
+    uint8_t fixed[5];
+    int fixed_len = 0;
+    fixed[fixed_len++] = 0x82; // SUBSCRIBE
 
-    return remaining + 2;
+    size_t rem = remaining;
+    do {
+        uint8_t byte = rem % 128;
+        rem /= 128;
+        if (rem) byte |= 0x80;
+        fixed[fixed_len++] = byte;
+    } while (rem);
+
+    memcpy(buf, fixed, fixed_len);
+    memcpy(buf + fixed_len, payload, remaining);
+
+    return fixed_len + remaining;
 }
 
 static void mqtt_subscribe(fd_ctx_t *m, const char *topic)
@@ -139,8 +153,8 @@ static size_t mqtt_build_connect(uint8_t *buf)
     uint8_t flags = 0x02 | 0x80 | 0x40 | 0x04 | 0x20;
     *p++ = flags;
 
-    *p++ = MQTT_KEEPALIVE >> 8;
-    *p++ = MQTT_KEEPALIVE & 0xff;
+    *p++ = (uint8_t)(mqtt_keepalive >> 8);
+    *p++ = (uint8_t)(mqtt_keepalive & 0xff);
 
     p = mqtt_put_string(p, MQTT_CLIENT_ID);
 
@@ -436,7 +450,7 @@ size_t dsmr_reader_render(fd_ctx_t *m)
         "\"electricity_currently_delivered\":%.0f,"
         "\"electricity_currently_returned\":%.0f,"
 
-        "\"gas_delivered\":%.3f"
+        "\"gas_delivered\":%.3f,"
 
         "\"phase_currently_delivered_l1\":%.0f,"
         "\"phase_currently_delivered_l2\":%.0f,"
@@ -448,10 +462,10 @@ size_t dsmr_reader_render(fd_ctx_t *m)
 
         "}\n",
         ts,
-        sensor.energy_export_kWh[1],
-        sensor.energy_export_kWh[2],
         sensor.energy_import_kWh[1],
         sensor.energy_import_kWh[2],
+        sensor.energy_export_kWh[1],
+        sensor.energy_export_kWh[2],
 
         sensor.power_import_W[0],
         sensor.power_export_W[0],
@@ -468,7 +482,9 @@ size_t dsmr_reader_render(fd_ctx_t *m)
     );
 
     mqtt_publish(m, MQTT_JSON_TOPIC, json, false);
-fprintf(stderr, "%s\n", json);
+    /* Remove debug output before production use */
+    fprintf(stderr, "%s\n", json);
+    return strlen(json);
 }
 
 /* =========================
@@ -477,16 +493,13 @@ fprintf(stderr, "%s\n", json);
 
 void mqtt_on_connect(fd_ctx_t *m)
 {
-//  m->status |= MQTT_CONNECTED;
     m->counter = 0;
 
-    mqtt_publish(m, MQTT_STATE_TOPIC, "ON", true);
     mqtt_publish(m, MQTT_AVAIL_TOPIC, "online", true);
     mqtt_subscribe(m, HA_STATUS_TOPIC);
 
     ha_publish_all(m);
     mqtt_publish_state(m);
-//  dsmr_reader_render(m);
 }
 
 fd_ctx_t *mqtt_open(void)
