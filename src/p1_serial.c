@@ -58,6 +58,7 @@ void serial_process(fd_ctx_t *ctx)
         {
             ctx->rlen += n;
 
+            bool was_valid = sensor_valid;
             int used = dsmr_parse_stream(ctx->rbuf, ctx->rlen);
 
             if (used > 0)
@@ -65,6 +66,10 @@ void serial_process(fd_ctx_t *ctx)
                 memmove(ctx->rbuf, ctx->rbuf + used, ctx->rlen - used);
                 ctx->rlen -= used;
             }
+
+            /* On the very first valid telegram, store the transition so
+               main() can trigger discovery + initial state publish. */
+            ctx->first_valid = (!was_valid && sensor_valid);
         }
         else if (n < 0 && errno == EAGAIN)
             break;

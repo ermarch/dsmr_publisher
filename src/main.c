@@ -35,6 +35,7 @@
 #include "p1_exporter.h"
 
 sensor_t sensor;
+bool sensor_valid = false;
 
 void ctx_free(int ep, fd_ctx_t *ctx)
 {
@@ -135,6 +136,10 @@ int main(void)
             else if (ctx->type == FD_SERIAL)
             {
                 serial_process(ctx);
+                if (ctx->first_valid && mqtt_ctx) {
+                    /* First valid telegram — send discovery then state */
+                    ha_publish_all(mqtt_ctx);
+                }
                 if (mqtt_ctx) mqtt_publish_state(mqtt_ctx);
                 systemd_watchdog_ping();
             }

@@ -245,6 +245,8 @@ int dsmr_parse_stream(uint8_t *buf, size_t len)
             dsmr_parse_telegram((char *)start, telegram_len);
 
             start[telegram_len] = save;
+
+            sensor_valid = true;
         }
         else
         {

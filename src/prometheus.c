@@ -37,6 +37,13 @@ int http_port = HTTP_PORT;
 
 int prometheus_render_to_buffer(char *buf, size_t size)
 {
+    if (!sensor_valid) {
+        return snprintf(buf, size,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain; version=0.0.4\r\n\r\n"
+            "# waiting for first valid telegram\n");
+    }
+
     snprintf(buf, size,
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/plain; version=0.0.4\r\n\r\n"

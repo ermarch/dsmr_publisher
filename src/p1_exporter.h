@@ -136,6 +136,7 @@ typedef struct {
 } sensor_t;
 
 extern sensor_t sensor;
+extern bool sensor_valid;
 
 /* ===================== FD CONTEXT ===================== */
 
@@ -163,6 +164,7 @@ typedef struct
     int counter; // mqtt
     int timer_fd; // mqtt
     uint16_t pkt_id; // mqtt
+    bool first_valid; // serial: set for one cycle when the first valid telegram arrives
 
 } fd_ctx_t;
 
@@ -191,6 +193,7 @@ void mqtt_connect(fd_ctx_t*, fd_ctx_t*);
 int mqtt_start_connect(fd_ctx_t*);
 void mqtt_publish_state(fd_ctx_t*);
 void mqtt_send_connect(fd_ctx_t*);
+void ha_publish_all(fd_ctx_t*);
 ssize_t mqtt_io_read(fd_ctx_t*);
 ssize_t mqtt_io_write(fd_ctx_t*);
 void schedule_reconnect(fd_ctx_t*, fd_ctx_t*);

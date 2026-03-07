@@ -352,6 +352,8 @@ void ha_publish_all(fd_ctx_t *m)
 
 void mqtt_publish_state(fd_ctx_t *m)
 {
+    if (!sensor_valid)
+        return;
     char json[1024];
 
     snprintf(json, sizeof(json),
@@ -497,8 +499,10 @@ void mqtt_on_connect(fd_ctx_t *m)
     mqtt_publish(m, MQTT_AVAIL_TOPIC, "online", true);
     mqtt_subscribe(m, HA_STATUS_TOPIC);
 
-    ha_publish_all(m);
-    mqtt_publish_state(m);
+    if (sensor_valid) {
+        ha_publish_all(m);
+        mqtt_publish_state(m);
+    }
 }
 
 fd_ctx_t *mqtt_open(void)
