@@ -66,13 +66,13 @@ static char* find_separator(char *str)
     return NULL;
 }
 
-// Case-insensitive string compare
+// Case-insensitive string compare (returns 1 if equal, 0 if not)
 static int stricmp(const char *a, const char *b) {
     while (*a && *b) {
         if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return 0;
         a++; b++;
     }
-    return *a == *b;
+    return (*a == '\0') && (*b == '\0');
 }
 
 ConfigParam* create_param(const char *key, const char *value) {
@@ -185,8 +185,8 @@ bool get_config_bool(Config *cfg, const char *section, const char *param, bool d
     const char *val = get_config_string(cfg, section, param, NULL);
     if (!val) return default_val;
 
-    if (stricmp(val, "1") || stricmp(val, "yes") || stricmp(val, "true") || stricmp(val, "on")) return true;
-    if (stricmp(val, "0") || stricmp(val, "no") || stricmp(val, "false") || stricmp(val, "off")) return false;
+    if (stricmp(val, "1") || stricmp(val, "yes") || stricmp(val, "true") || stricmp(val, "on"))   return true;
+    if (stricmp(val, "0") || stricmp(val, "no")  || stricmp(val, "false") || stricmp(val, "off")) return false;
     return default_val;
 }
 
