@@ -150,17 +150,17 @@ int main(void)
             else if (ctx->type == FD_MQTT_RECONNECT && mqtt_ctx)
             {
                 uint64_t expirations;
-                read(mqtt_ctx->fd, &expirations, sizeof(expirations));
+                read(ctx->fd, &expirations, sizeof(expirations));
 
-                epoll_ctl(ctx->fd, EPOLL_CTL_DEL, mqtt_ctx->fd, NULL);
+                epoll_ctl(ep, EPOLL_CTL_DEL, mqtt_ctx->fd, NULL);
 
                 int newfd = mqtt_start_connect(mqtt_ctx);
 
                 struct epoll_event mqtt_ev = {
                     .events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR,
-                    .data.fd = newfd
+                    .data.ptr = mqtt_ctx
                 };
-                epoll_ctl(ctx->fd, EPOLL_CTL_ADD, newfd, &mqtt_ev);
+                epoll_ctl(ep, EPOLL_CTL_ADD, newfd, &mqtt_ev);
             }
             else if (ctx->type == FD_MQTT && mqtt_ctx)
             {
