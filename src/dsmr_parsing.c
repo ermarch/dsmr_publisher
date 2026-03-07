@@ -168,7 +168,7 @@ static void dsmr_parse_line(const char *l, size_t line_len)
     // 0-n:24.1.0: Device-Type
     } else if (sscanf(l, "0-%d:24.1.0(%d)", &sensor.channel, &type) == 2) {
         if (type < 0) type = 0;
-        else if (type > MBUS_CHANNELS) type = MBUS_CHANNELS;
+        else if (type >= MBUS_CHANNELS) type = MBUS_CHANNELS - 1;
         sensor.mbus_type[sensor.channel] = type;
     }
 
