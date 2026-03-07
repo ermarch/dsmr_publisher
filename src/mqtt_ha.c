@@ -482,8 +482,7 @@ size_t dsmr_reader_render(fd_ctx_t *m)
     );
 
     mqtt_publish(m, MQTT_JSON_TOPIC, json, false);
-    /* Remove debug output before production use */
-    fprintf(stderr, "%s\n", json);
+
     return strlen(json);
 }
 
