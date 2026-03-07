@@ -92,7 +92,7 @@ int prometheus_render_to_buffer(char *buf, size_t size)
         sensor.equipment_id, sensor.power_export_W[0], // total
         sensor.equipment_id, sensor.power_export_W[1], // phase 1
         sensor.equipment_id, sensor.power_export_W[2], // phase 2
-        sensor.equipment_id, sensor.power_export_W[3], // phase 2
+        sensor.equipment_id, sensor.power_export_W[3], // phase 3
 
         sensor.equipment_id, sensor.voltage_V[1], // phase 1
         sensor.equipment_id, sensor.voltage_V[2], // phase 2
