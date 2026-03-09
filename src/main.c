@@ -101,8 +101,11 @@ int main(void)
     fd_ctx_t *mqtt_ctx = mqtt_open();
     if (mqtt_ctx)
     {
-        mqtt_start_connect(mqtt_ctx);
-        ep_add(ep, mqtt_ctx, EPOLLIN | EPOLLOUT);
+        int fd = mqtt_start_connect(mqtt_ctx);
+        if (fd >= 0)
+            ep_add(ep, mqtt_ctx, EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR);
+        else
+            schedule_reconnect(ep, mqtt_ctx);
     }
 
     systemd_ready();
@@ -121,7 +124,7 @@ int main(void)
             if (ev & (EPOLLHUP | EPOLLERR | EPOLLRDHUP))
             {
                 if (ctx->type == FD_MQTT || ctx->type == FD_MQTT_RECONNECT) {
-                    schedule_reconnect(ctx, mqtt_ctx);
+                    schedule_reconnect(ep, mqtt_ctx);
                 } else {
                     ctx_free(ep, ctx);
                 }
@@ -168,21 +171,23 @@ int main(void)
                 uint64_t expirations;
                 read(ctx->fd, &expirations, sizeof(expirations));
 
-                epoll_ctl(ep, EPOLL_CTL_DEL, mqtt_ctx->fd, NULL);
-
                 int newfd = mqtt_start_connect(mqtt_ctx);
-
-                struct epoll_event mqtt_ev = {
-                    .events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR,
-                    .data.ptr = mqtt_ctx
-                };
-                epoll_ctl(ep, EPOLL_CTL_ADD, newfd, &mqtt_ev);
+                if (newfd < 0) {
+                    /* Connect failed immediately — schedule another retry */
+                    schedule_reconnect(ep, mqtt_ctx);
+                } else {
+                    struct epoll_event mqtt_ev = {
+                        .events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR,
+                        .data.ptr = mqtt_ctx
+                    };
+                    epoll_ctl(ep, EPOLL_CTL_ADD, newfd, &mqtt_ev);
+                }
             }
             else if (ctx->type == FD_MQTT && mqtt_ctx)
             {
                 if (ev & EPOLLIN) {
                     if (mqtt_io_read(mqtt_ctx) < 0) {
-                        schedule_reconnect(ctx, mqtt_ctx);
+                        schedule_reconnect(ep, mqtt_ctx);
                         continue;
                     }
                 }
@@ -196,7 +201,7 @@ int main(void)
 
                     /* normal write flush */
                     if (mqtt_io_write(mqtt_ctx) < 0) {
-                        schedule_reconnect(ctx, mqtt_ctx);
+                        schedule_reconnect(ep, mqtt_ctx);
                         continue;
                     }
                 }
