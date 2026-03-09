@@ -166,6 +166,7 @@ typedef struct
     uint16_t pkt_id; // mqtt
     bool first_valid; // serial: set for one cycle when the first valid telegram arrives
     bool io_error;    // serial: set when the device returns EOF or an unrecoverable error
+    int  ep_fd;       // epoll fd, stored so write-arming can be done from queue functions
 
 } fd_ctx_t;
 
