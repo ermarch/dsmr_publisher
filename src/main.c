@@ -101,6 +101,7 @@ int main(void)
     fd_ctx_t *mqtt_ctx = mqtt_open();
     if (mqtt_ctx)
     {
+        mqtt_ctx->ep_fd = ep;
         int fd = mqtt_start_connect(mqtt_ctx);
         if (fd >= 0)
             ep_add(ep, mqtt_ctx, EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR);
@@ -205,6 +206,14 @@ int main(void)
                         continue;
                     }
                 }
+
+                /* If write buffer is now empty, stop watching EPOLLOUT to
+                   avoid a busy-loop — the socket is always writable when
+                   idle. Re-arm EPOLLOUT only when data is queued. */
+                uint32_t want = EPOLLIN | EPOLLRDHUP | EPOLLERR;
+                if (mqtt_ctx->wlen > 0)
+                    want |= EPOLLOUT;
+                ep_mod(ep, mqtt_ctx, want);
             }
         }
 
