@@ -192,8 +192,11 @@ int mqtt_start_connect(fd_ctx_t *m)
         return -1;
 
     int r = connect(m->fd, (struct sockaddr *)&addr, sizeof(addr));
-    if (r < 0 && errno != EINPROGRESS)
+    if (r < 0 && errno != EINPROGRESS) {
+        close(m->fd);
+        m->fd = -1;
         return -1;
+    }
 
     m->status |= MQTT_CONNECTING;
     return m->fd;
@@ -621,11 +624,11 @@ static int mqtt_next_backoff(int attempts)
    SCHEDULE RCONNECT
    ========================= */
 
-void schedule_reconnect(fd_ctx_t *ctx, fd_ctx_t *m)
+void schedule_reconnect(int ep, fd_ctx_t *m)
 {
     if (m->fd != -1)
     {
-        epoll_ctl(ctx->fd, EPOLL_CTL_DEL, m->fd, NULL);
+        epoll_ctl(ep, EPOLL_CTL_DEL, m->fd, NULL);
         close(m->fd);
         m->fd = -1;
     }
@@ -636,10 +639,21 @@ void schedule_reconnect(fd_ctx_t *ctx, fd_ctx_t *m)
     int delay = mqtt_next_backoff(m->counter++);
     printf("MQTT reconnect in %d sec\n", delay);
 
+    struct epoll_event ev = {
+        .events = EPOLLIN,
+        .data.ptr = m
+    };
+
     if (m->timer_fd == -1)
     {
         m->timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
         m->type = FD_MQTT_RECONNECT;
+        epoll_ctl(ep, EPOLL_CTL_ADD, m->timer_fd, &ev);
+    }
+    else
+    {
+        /* Timer already registered — just update it */
+        epoll_ctl(ep, EPOLL_CTL_MOD, m->timer_fd, &ev);
     }
 
     struct itimerspec ts = {
@@ -647,11 +661,4 @@ void schedule_reconnect(fd_ctx_t *ctx, fd_ctx_t *m)
     };
 
     timerfd_settime(m->timer_fd, 0, &ts, NULL);
-
-    struct epoll_event ev = {
-        .events = EPOLLIN,
-        .data.fd = m->timer_fd
-    };
-
-    epoll_ctl(ctx->fd, EPOLL_CTL_ADD, m->timer_fd, &ev);
 }
