@@ -55,8 +55,19 @@ static void mqtt_queue_raw(fd_ctx_t *m, const void *data, size_t len)
     if (m->wlen + len > WBUF)
         return;
 
+    bool was_empty = (m->wlen == 0);
+
     memcpy(m->wbuf + m->wlen, data, len);
     m->wlen += len;
+
+    /* Re-arm EPOLLOUT now that there is data to send */
+    if (was_empty && m->fd >= 0 && m->ep_fd >= 0) {
+        struct epoll_event e = {
+            .events  = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR,
+            .data.ptr = m
+        };
+        epoll_ctl(m->ep_fd, EPOLL_CTL_MOD, m->fd, &e);
+    }
 }
 
 /* =========================
@@ -510,8 +521,9 @@ void mqtt_on_connect(fd_ctx_t *m)
 fd_ctx_t *mqtt_open(void)
 {
     fd_ctx_t *ctx = calloc(1, sizeof(*ctx));
-    ctx->type = FD_MQTT;
+    ctx->type     = FD_MQTT;
     ctx->timer_fd = -1;
+    ctx->ep_fd    = -1;
 
     return ctx;
 }
