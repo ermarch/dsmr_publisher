@@ -52,7 +52,7 @@
 #define MQTT_AVAIL_TOPIC	MQTT_CLIENT_ID"/availability"
 
 #define HA_DISCOVERY_PREFIX	"homeassistant"
-#define HA_STATUS_TOPIC		HA_DISCOVERY_PREFIX"/state"
+#define HA_STATUS_TOPIC		HA_DISCOVERY_PREFIX"/status"
 
 #define MQTT_HOST		"192.168.1.206"
 #define MQTT_PORT		1883
