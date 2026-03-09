@@ -89,7 +89,7 @@ static void dsmr_parse_line(const char *l, size_t line_len)
     double v;
 
     // 0-0:96.1.1: Equipment Identifier of the electricity meter
-    sscanf(l, "0-0:96.1.1(%31s)", sensor.equipment_id);
+    sscanf(l, "0-0:96.1.1(%31[^)])", sensor.equipment_id);
 
     // 1-0:1.8.0: Total cumulative energy consumed (imported)
     // 1-0:1.8.1: Meter Reading electricity delivered to client (low tariff)
