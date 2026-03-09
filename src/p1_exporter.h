@@ -197,7 +197,7 @@ void mqtt_send_connect(fd_ctx_t*);
 void ha_publish_all(fd_ctx_t*);
 ssize_t mqtt_io_read(fd_ctx_t*);
 ssize_t mqtt_io_write(fd_ctx_t*);
-void schedule_reconnect(fd_ctx_t*, fd_ctx_t*);
+void schedule_reconnect(int ep, fd_ctx_t*);
 
 // prometheus
 fd_ctx_t *make_listen_socket(void);
