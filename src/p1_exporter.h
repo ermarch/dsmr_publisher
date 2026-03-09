@@ -191,7 +191,7 @@ int  dsmr_parse_stream(uint8_t*, size_t);
 
 // mqtt_ha
 fd_ctx_t *mqtt_open(void);
-void mqtt_connect(fd_ctx_t*);
+int  mqtt_connect(fd_ctx_t*);
 int mqtt_start_connect(fd_ctx_t*);
 void mqtt_publish_state(fd_ctx_t*);
 void mqtt_send_connect(fd_ctx_t*);

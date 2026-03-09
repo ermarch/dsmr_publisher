@@ -196,20 +196,21 @@ int main(void)
                 {
                     if (mqtt_ctx->status & MQTT_CONNECTING)
                     {
-                        mqtt_connect(mqtt_ctx);
-                        continue;
+                        if (mqtt_connect(mqtt_ctx) < 0)
+                            continue; /* reconnect scheduled, ctx may be gone */
+                        /* fall through to ep_mod to arm EPOLLOUT for CONNECT packet */
                     }
-
-                    /* normal write flush */
-                    if (mqtt_io_write(mqtt_ctx) < 0) {
-                        schedule_reconnect(ep, mqtt_ctx);
-                        continue;
+                    else
+                    {
+                        /* normal write flush */
+                        if (mqtt_io_write(mqtt_ctx) < 0) {
+                            schedule_reconnect(ep, mqtt_ctx);
+                            continue;
+                        }
                     }
                 }
 
-                /* If write buffer is now empty, stop watching EPOLLOUT to
-                   avoid a busy-loop — the socket is always writable when
-                   idle. Re-arm EPOLLOUT only when data is queued. */
+                /* Re-arm: watch EPOLLOUT only when there is data to send */
                 uint32_t want = EPOLLIN | EPOLLRDHUP | EPOLLERR;
                 if (mqtt_ctx->wlen > 0)
                     want |= EPOLLOUT;

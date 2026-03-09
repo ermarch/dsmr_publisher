@@ -87,7 +87,7 @@ static uint8_t *mqtt_put_string(uint8_t *p, const char *s)
 /* =========================
    MQTT CONNECT
    ========================= */
-void mqtt_connect(fd_ctx_t *mqtt_ctx)
+int mqtt_connect(fd_ctx_t *mqtt_ctx)
 {
     int err = 0;
     socklen_t len = sizeof(err);
@@ -96,7 +96,7 @@ void mqtt_connect(fd_ctx_t *mqtt_ctx)
     {
         /* CONNECT FAILED */
         schedule_reconnect(mqtt_ctx->ep_fd, mqtt_ctx);
-        return;
+        return -1;
     }
 
     /* CONNECT SUCCESS */
@@ -104,6 +104,7 @@ void mqtt_connect(fd_ctx_t *mqtt_ctx)
 
     // send MQTT CONNECT packet
     mqtt_send_connect(mqtt_ctx);
+    return 0;
 }
 
 /* =========================
