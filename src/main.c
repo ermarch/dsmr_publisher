@@ -120,7 +120,11 @@ int main(void)
 
             if (ev & (EPOLLHUP | EPOLLERR | EPOLLRDHUP))
             {
-                ctx_free(ep, ctx);
+                if (ctx->type == FD_MQTT || ctx->type == FD_MQTT_RECONNECT) {
+                    schedule_reconnect(ctx, mqtt_ctx);
+                } else {
+                    ctx_free(ep, ctx);
+                }
                 continue;
             }
 
@@ -142,13 +146,20 @@ int main(void)
                 }
                 if (mqtt_ctx) mqtt_publish_state(mqtt_ctx);
                 systemd_watchdog_ping();
+
+                if (ctx->io_error) {
+                    /* Serial device gone (e.g. USB unplugged) — exit and
+                       let systemd restart us so we re-open the device */
+                    perror("serial error");
+                    return 1;
+                }
             }
             else if (ctx->type == FD_HTTP)
             {
                 if (ev & EPOLLIN) {
                     http_read(ctx, ep);
-                }
-                if (ev & EPOLLOUT) {
+                    /* ctx may have been freed on error — do not touch it */
+                } else if (ev & EPOLLOUT) {
                     http_write(ctx, ep);
                 }
             }
@@ -170,7 +181,10 @@ int main(void)
             else if (ctx->type == FD_MQTT && mqtt_ctx)
             {
                 if (ev & EPOLLIN) {
-                    mqtt_io_read(mqtt_ctx);
+                    if (mqtt_io_read(mqtt_ctx) < 0) {
+                        schedule_reconnect(ctx, mqtt_ctx);
+                        continue;
+                    }
                 }
                 if (ev & EPOLLOUT)
                 {
@@ -181,7 +195,10 @@ int main(void)
                     }
 
                     /* normal write flush */
-                    mqtt_io_write(mqtt_ctx);
+                    if (mqtt_io_write(mqtt_ctx) < 0) {
+                        schedule_reconnect(ctx, mqtt_ctx);
+                        continue;
+                    }
                 }
             }
         }
