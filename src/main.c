@@ -196,7 +196,7 @@ int main(void)
                 {
                     if (mqtt_ctx->status & MQTT_CONNECTING)
                     {
-                        mqtt_connect(ctx, mqtt_ctx);
+                        mqtt_connect(mqtt_ctx);
                         continue;
                     }
 

@@ -87,7 +87,7 @@ static uint8_t *mqtt_put_string(uint8_t *p, const char *s)
 /* =========================
    MQTT CONNECT
    ========================= */
-void mqtt_connect(fd_ctx_t *ctx, fd_ctx_t *mqtt_ctx)
+void mqtt_connect(fd_ctx_t *mqtt_ctx)
 {
     int err = 0;
     socklen_t len = sizeof(err);
@@ -95,7 +95,7 @@ void mqtt_connect(fd_ctx_t *ctx, fd_ctx_t *mqtt_ctx)
     if (getsockopt(mqtt_ctx->fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0 || err != 0)
     {
         /* CONNECT FAILED */
-        schedule_reconnect(ctx, mqtt_ctx);
+        schedule_reconnect(mqtt_ctx->ep_fd, mqtt_ctx);
         return;
     }
 
