@@ -73,7 +73,9 @@ void serial_process(fd_ctx_t *ctx)
         }
         else if (n < 0 && errno == EAGAIN)
             break;
-        else
+        else {
+            ctx->io_error = true;
             break;
+        }
     }
 }
