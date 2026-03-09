@@ -354,10 +354,7 @@ void ha_publish_all(fd_ctx_t *m)
     ha_publish_sensor(m,id,"tariff_indicator","Tariff",NULL,NULL,NULL,"{{ value_json.tariff_indicator }}");
     ha_publish_sensor(m,id,"power_failures","Power failures",NULL,NULL,"total_increasing","{{ value_json.power_failures }}");
 
-    id = sensor.mbus_id[GAS_METER_ID];
     ha_publish_sensor(m,id,"gas","Gas consumption","m³","gas","total_increasing","{{ value_json.gas }}");
-
-    id = sensor.mbus_id[WATER_METER_ID];
     ha_publish_sensor(m,id,"water","Water consumption","m³","water","total_increasing","{{ value_json.water }}");
 }
 
