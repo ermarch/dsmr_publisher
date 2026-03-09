@@ -159,6 +159,12 @@ void http_read(fd_ctx_t *ctx, int ep)
 {
     while (1)
     {
+        if (ctx->rlen == sizeof(ctx->rbuf)) {
+            /* Buffer full with no complete request — close the connection */
+            ctx_free(ep, ctx);
+            return;
+        }
+
         ssize_t n = read(ctx->fd,
                          ctx->rbuf + ctx->rlen,
                          sizeof(ctx->rbuf) - ctx->rlen);
@@ -167,8 +173,11 @@ void http_read(fd_ctx_t *ctx, int ep)
             ctx->rlen += n;
         else if (n < 0 && errno == EAGAIN)
             break;
-        else
+        else {
+            /* EOF or error — close cleanly */
+            ctx_free(ep, ctx);
             return;
+        }
     }
 
     if (http_request_complete(ctx))
@@ -192,10 +201,13 @@ void http_write(fd_ctx_t *ctx, int ep)
 
         if (n > 0)
             ctx->woff += n;
-        else if (errno == EAGAIN)
+        else if (n < 0 && errno == EAGAIN)
             return;
-        else
+        else {
+            /* EOF or error */
+            ctx_free(ep, ctx);
             return;
+        }
     }
 
     ctx_free(ep, ctx);
