@@ -484,7 +484,6 @@ size_t dsmr_reader_render(fd_ctx_t *m)
     );
 
     mqtt_publish(m, MQTT_JSON_TOPIC, json, false);
-
     return strlen(json);
 }
 
@@ -527,6 +526,10 @@ ssize_t mqtt_io_write(fd_ctx_t *m)
     if (n > 0) {
         memmove(m->wbuf, m->wbuf + n, m->wlen - n);
         m->wlen -= n;
+    } else if (n < 0 && errno == EAGAIN) {
+        return 0;
+    } else {
+        return -1; /* connection lost */
     }
     return n;
 }
@@ -535,6 +538,10 @@ ssize_t mqtt_io_read(fd_ctx_t *m)
 {
     ssize_t n = read(m->fd, m->rbuf + m->rlen,
                      sizeof(m->rbuf) - m->rlen);
+
+    if (n == 0 || (n < 0 && errno != EAGAIN)) {
+        return -1; /* connection lost */
+    }
 
     if (n > 0) {
         m->rlen += n;
