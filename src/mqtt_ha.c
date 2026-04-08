@@ -580,35 +580,57 @@ ssize_t mqtt_io_read(fd_ctx_t *m)
     while (m->rlen > 2)
     {
         uint8_t type = m->rbuf[0] & 0xF0;
-        uint8_t rem  = m->rbuf[1];
 
-        if (m->rlen < rem + 2)
-            break;
+        /* Decode variable-length remaining field */
+        uint32_t rem = 0;
+        uint32_t multiplier = 1;
+        int hdr_len = 1; /* byte 0 is the fixed header */
+        while (1) {
+            if (hdr_len > (int)m->rlen)
+                goto need_more_data;
+            uint8_t b = m->rbuf[hdr_len++];
+            rem += (b & 0x7f) * multiplier;
+            multiplier *= 128;
+            if (!(b & 0x80)) break;
+            if (hdr_len > 5) {
+                /* Malformed — discard everything */
+                m->rlen = 0;
+                goto need_more_data;
+            }
+        }
 
-        if (type == 0x30)
+        if (m->rlen < (size_t)(hdr_len + rem))
+            break; /* incomplete packet — wait for more data */
+
+        if (type == 0x30) /* PUBLISH */
         {
-            uint16_t topic_len = (m->rbuf[2] << 8) | m->rbuf[3];
-            char topic[128] = {0};
-            memcpy(topic, &m->rbuf[4], topic_len);
+            if (rem >= 2) {
+                uint16_t topic_len = (m->rbuf[hdr_len] << 8) | m->rbuf[hdr_len + 1];
+                if (rem >= (uint32_t)(2 + topic_len)) {
+                    char topic[128] = {0};
+                    size_t copy_len = topic_len < sizeof(topic) - 1 ? topic_len : sizeof(topic) - 1;
+                    memcpy(topic, &m->rbuf[hdr_len + 2], copy_len);
 
-            char *payload = (char*)&m->rbuf[4 + topic_len];
-            size_t payload_len = rem - topic_len - 2;
+                    char *payload = (char*)&m->rbuf[hdr_len + 2 + topic_len];
+                    size_t payload_len = rem - 2 - topic_len;
 
-            if (strcmp(topic, HA_STATUS_TOPIC) == 0)
-            {
-                if (payload_len == 6 && memcmp(payload, "online", 6) == 0)
-                {
-                    /* HA restarted: resend discovery and state */
-                    ha_publish_all(m);
-                    mqtt_publish_state(m);
-//                  dsmr_reader_render(m);
+                    if (strcmp(topic, HA_STATUS_TOPIC) == 0)
+                    {
+                        if (payload_len == 6 && memcmp(payload, "online", 6) == 0)
+                        {
+                            /* HA restarted: resend discovery and state */
+                            ha_publish_all(m);
+                            mqtt_publish_state(m);
+                        }
+                    }
                 }
             }
         }
 
-        memmove(m->rbuf, m->rbuf + rem + 2, m->rlen - rem - 2);
-        m->rlen -= rem + 2;
+        memmove(m->rbuf, m->rbuf + hdr_len + rem, m->rlen - hdr_len - rem);
+        m->rlen -= hdr_len + rem;
     }
+    need_more_data:
 
     return n;
 }
