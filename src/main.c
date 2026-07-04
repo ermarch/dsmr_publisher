@@ -47,13 +47,17 @@ void ctx_free(int ep, fd_ctx_t *ctx)
 static void ep_add(int ep, fd_ctx_t *ctx, uint32_t ev)
 {
     struct epoll_event e = {.events = ev, .data.ptr = ctx};
-    epoll_ctl(ep, EPOLL_CTL_ADD, ctx->fd, &e);
+    if (epoll_ctl(ep, EPOLL_CTL_ADD, ctx->fd, &e) < 0) {
+        perror("ep_add");
+    }
 }
 
 void ep_mod(int ep, fd_ctx_t *ctx, uint32_t ev)
 {
     struct epoll_event e = {.events = ev, .data.ptr = ctx};
-    epoll_ctl(ep, EPOLL_CTL_MOD, ctx->fd, &e);
+    if (epoll_ctl(ep, EPOLL_CTL_MOD, ctx->fd, &e) < 0) {
+        perror("ep_mod");
+    }
 }
 
 void read_config(void)

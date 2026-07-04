@@ -1,15 +1,28 @@
 [Unit]
 Description=DSMR P1 Prometheus and Home Assistant publisher
-After=network.target
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=notify
-WatchdogSec=30s
 NotifyAccess=main
-ExecStart=/usr/local/bin/dsmr_publsiher
+
+# The app pings WATCHDOG=1 at roughly half this interval (see
+# systemd_watchdog_ping in systemd.c). If the process hangs
+# completely (e.g. blocked in a syscall), systemd kills and
+# restarts it after this many seconds without a ping.
+WatchdogSec=30s
+WatchdogSignal=SIGKILL
+
+ExecStart=/usr/local/bin/dsmr_publisher
 Restart=always
+RestartSec=2
+
 User=p1
 Group=dialout
+
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

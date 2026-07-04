@@ -668,6 +668,17 @@ void schedule_reconnect(int ep, fd_ctx_t *m)
     m->status &= ~MQTT_CONNECTED;
     m->status &= ~MQTT_CONNECTING;
 
+    /* Discard any partially-read or partially-written data from the old
+       connection. Without this, stale bytes left in wbuf (e.g. a PUBLISH
+       that was mid-write when the connection dropped) get sent *before*
+       the fresh CONNECT packet on the new socket, so the broker sees a
+       malformed stream and closes it again immediately -- reconnect would
+       then never succeed. Likewise stale rbuf bytes would corrupt parsing
+       of the new CONNACK. */
+    m->rlen = 0;
+    m->wlen = 0;
+    m->woff = 0;
+
     int delay = mqtt_next_backoff(m->counter++);
     printf("MQTT reconnect in %d sec\n", delay);
 
